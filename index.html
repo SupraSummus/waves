@@ -1,0 +1,892 @@
+<html>
+<head>
+
+<script
+			  src="https://code.jquery.com/jquery-1.12.4.min.js"
+			  integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+			  crossorigin="anonymous"></script>
+<script type="text/javascript">
+
+function time(){//zwraca czas w milisekundach od pierwszego stycznia 1970 blablabla...
+	var a=new Date();
+	return a.getTime();
+} 
+
+function Element(){
+	this.osrodek;
+	this.sasiedzi=new Array();
+	this.wychylenie=0;
+	this.predkosc=0;
+	//this.masa=1;
+	//this.sprezystosc=1;
+	this.bezwladnosc=1;
+	this.tlumienie=0;
+	//this.do_zera=0;
+	
+	this.x;
+	this.y;
+	this.border=false;
+	//this.border_width=1;
+	this.border_color="lime";
+	
+	this.licz_predkosc=function(dt){
+		var tmp=0;
+		for(n in this.sasiedzi){
+			tmp+=(this.sasiedzi[n].wychylenie-this.wychylenie);
+			//this.predkosc+=(this.sasiedzi[n].wychylenie-this.wychylenie)*dt/this.bezwladnosc;
+		}
+		this.predkosc*=(1-this.tlumienie*dt);
+		this.predkosc+=tmp*dt/this.bezwladnosc;
+		
+	}
+	
+	this.licz_wychylenie=function(dt){
+		this.wychylenie+=this.predkosc*dt;//*(1-this.tlumienie*dt);
+	}
+	
+	this.rysuj=function(){
+		var plotno=this.osrodek.plotno;
+		
+		var a=Math.round((this.wychylenie+1)*0.5*256);
+		//var rgb="rgb("+a+","+0+","+(256-a)+")";
+		var rgb="rgb("+a+","+a+","+a+")";
+		plotno.fillStyle=rgb;
+		plotno.fillRect(this.x*this.osrodek.rozmiar_komorki,this.y*this.osrodek.rozmiar_komorki,this.osrodek.rozmiar_komorki,this.osrodek.rozmiar_komorki);
+		
+		if(this.border){
+			plotno.strokeStyle=this.border_color;//this.border_color;
+			plotno.strokeRect(this.x*this.osrodek.rozmiar_komorki,this.y*this.osrodek.rozmiar_komorki,this.osrodek.rozmiar_komorki,this.osrodek.rozmiar_komorki);
+		}
+		
+		//plotno.fillStyle="lime";
+		//plotno.font="7px monospace";
+		//plotno.fillText(this.znak,this.x*this.osrodek.rozmiar_komorki,(this.y+1)*this.osrodek.rozmiar_komorki);
+		//var rgb="#"+b+b+b;
+		//this.osrodek.rysuj_komorke(this.x,this.y,rgb);
+		//$(this.obraz).css({'background-color':rgb});
+		//$(this.obraz).css({'background-color':'rgb(128,128,128)'});
+	}
+}
+
+function Osrodek(){
+	//this.obraz;
+	this.elementy=new Array();
+	this.interval;	
+	this.running=false;
+	
+	this.n=0;
+	
+	this.canvas;
+	this.plotno;
+	
+	this.komorek_x;
+	this.komorek_y;
+	this.rozmiar_komorki;
+	
+	this.init=function(komorek_x,komorek_y,rozmiar_komorki){
+		if(rozmiar_komorki==undefined)rozmiar_komorki=10;
+		
+		this.stop();
+		$(this.canvas).remove();
+		this.elementy=new Array();
+		
+		this.komorek_x=parseInt(komorek_x);
+		this.komorek_y=parseInt(komorek_y);
+		this.rozmiar_komorki=rozmiar_komorki;
+		
+		this.canvas=$("<canvas></canvas>").prependTo("body").css("border","1px solid").get(0);
+		
+		$(this.canvas).attr({"width":this.komorek_x*this.rozmiar_komorki,"height":this.komorek_y*this.rozmiar_komorki});
+		this.plotno=this.canvas.getContext("2d");
+		
+		
+		
+		/*this.obraz=$("<table></table>").prependTo("body").css({
+			"border-collapse":"collapse",
+			"width":sx+"px",
+			"height":sy+"px"
+		}).get();*/
+		//this.obraz
+		
+		var tmp;
+		for(var y=0;y<this.komorek_y;y++){
+			//$("<tr></tr>").appendTo(this.obraz).attr('id',''+y);
+			for(var x=0;x<this.komorek_x;x++){
+				/*tmp=$('<td></td>').appendTo('#'+y).css({
+					"width":snx,
+					"height":sny
+					//'background-color':'rgb(128,128,128)'
+				}).text(".")[0];*/
+				this.elementy[''+x+'x'+y]=new Element();
+				this.elementy[''+x+'x'+y].osrodek=this;
+				this.elementy[''+x+'x'+y].x=x;
+				this.elementy[''+x+'x'+y].y=y;
+			}
+		}
+		
+		for(var y=0;y<this.komorek_y;y++){
+			for(var x=0;x<this.komorek_x;x++){
+				if(typeof(this.elementy[''+(x)+'x'+(y+1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x)+'x'+(y+1)]);
+				if(typeof(this.elementy[''+(x)+'x'+(y-1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x)+'x'+(y-1)]);
+				if(typeof(this.elementy[''+(x+1)+'x'+(y)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x+1)+'x'+(y)]);
+				if(typeof(this.elementy[''+(x-1)+'x'+(y)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x-1)+'x'+(y)]);
+				
+				if(typeof(this.elementy[''+(x+1)+'x'+(y+1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x+1)+'x'+(y+1)]);
+				if(typeof(this.elementy[''+(x+1)+'x'+(y-1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x+1)+'x'+(y-1)]);
+				if(typeof(this.elementy[''+(x-1)+'x'+(y+1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x-1)+'x'+(y+1)]);
+				if(typeof(this.elementy[''+(x-1)+'x'+(y-1)])!='undefined')this.elementy[''+x+'x'+y].sasiedzi.push(this.elementy[''+(x-1)+'x'+(y-1)]);
+			}
+		}
+		
+	}
+	
+	/*this.rysuj_komorke=function(x,y,color){
+		if(0>x||x>this.komorek_x||0>y||y>this.komorek_y)return;
+		this.plotno.fillStyle=color;
+		this.plotno.fillRect(x*this.rozmiar_komorki,y*this.rozmiar_komorki,this.rozmiar_komorki,this.rozmiar_komorki);
+	}*/
+	
+	this.klatka=function(dt){
+		//var dt=0.01;
+		for(n in this.elementy){
+			this.elementy[n].licz_predkosc(dt);
+		}
+		for(n in this.elementy){
+			this.elementy[n].licz_wychylenie(dt);
+			this.elementy[n].rysuj();
+		}
+		
+		this.n++;
+	}
+	
+	this.start=function(){
+		if(!this.running)this.interval=setInterval(function(){
+			//console.log("klatka");
+			
+			var dt=0.03;
+			for(n in osrodek.elementy){
+				osrodek.elementy[n].licz_predkosc(dt);
+			}
+			for(n in osrodek.elementy){
+				osrodek.elementy[n].licz_wychylenie(dt);
+				osrodek.elementy[n].rysuj();
+			}
+			osrodek.n++;
+		},30);
+		this.running=true;
+	}
+	
+	this.stop=function(){
+		if(this.running)clearInterval(this.interval);
+		this.running=false;
+	}
+}
+
+/*function Obraz(){
+	this.canvas;
+	this.plotno;
+	
+	this.komorek_x;
+	this.komorek_y;
+	this.rozmiar_komorki;
+	
+	this.init=function(komorek_x,komorek_y,rozmiar_komorki,canvas){
+		this.komorek_x=komorek_x;
+		this.komorek_y=komorek_y;
+		this.rozmiar_komorki=rozmiar_komorki;
+		this.canvas=canvas;
+		
+		$(this.canvas).attr({"width":this.komorek_x*this.rozmiar_komorki,"height":this.komorek_y*this.rozmiar_komorki});
+		this.plotno=this.canvas.getContext("2d");
+	}
+	
+	this.rysuj=function(x,y,color){
+		if(0>x||x>this.komorek_x||0>y||y>this.komorek_y)return;
+		this.plotno.fillStyle=color;
+		this.plotno.fillRect(x*this.rozmiar_komorki,y*this.rozmiar_komorki,this.rozmiar_komorki,this.rozmiar_komorki);
+	}
+}*/
+
+var osrodek;
+
+var programy=new Array();//programy ###############################################3
+programy["odbicia"]=function(){// plansza 40x30, odbicia ###################################3
+	osrodek.init(40,30,10);
+	var id;
+	
+	id='1x1';
+	ustaw_zrodlo(osrodek.elementy[id],6,3,0);
+	
+	for(var n=0;n<22;n++){
+		id="20x"+(n+7);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<13;n++){
+		id=(n+0)+'x14';
+		ustaw_tlumik(osrodek.elementy[id]);
+		id=(n+0)+'x15';
+		ustaw_tlumik(osrodek.elementy[id]);
+		id=(n+0)+'x16';
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<10;n++){
+		id=(n+25)+"x"+(n+1);
+		ustaw_sciane(osrodek.elementy[id]);
+		
+		id=(n+26)+"x"+(n+1);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<10;n++){
+		id=(n+27)+"x23";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=(n+27)+"x24";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=(n+27)+"x25";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	osrodek.start();
+}
+programy["dyfrakcja T=3s"]=function(){//plansza 40x30, dziura T=3s #############################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<28;n++){
+		id="0x"+(n+1);
+		ustaw_zrodlo(osrodek.elementy[id],1,3,0);
+		
+		id="39x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<11;n++){
+		id="10x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="11x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		//id="12x"+(n+12);
+		//ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="12x"+(n+1);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<11;n++){
+		id="10x"+(n+18);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="11x"+(n+18);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		//id="12x"+(n+12);
+		//ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="12x"+(n+18);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	osrodek.start();
+}
+programy["dyfrakcja T=6s"]=function(){//plansza 40x30, dziura T=6s #############################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<28;n++){
+		id="0x"+(n+1);
+		ustaw_zrodlo(osrodek.elementy[id],1,6,0);
+		
+		id="39x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<11;n++){
+		id="10x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="11x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		//id="12x"+(n+12);
+		//ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="12x"+(n+1);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<11;n++){
+		id="10x"+(n+18);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="11x"+(n+18);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		//id="12x"+(n+12);
+		//ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="12x"+(n+18);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	osrodek.start();
+}
+
+programy["zmienna gestosc"]=function(){//plansza 40x30, zmienna gestosc ###############################################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<28;n++){
+		id="0x"+(n+1);
+		ustaw_zrodlo(osrodek.elementy[id],1,3,0);
+		
+		id="39x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<14;n++){
+		id="10x"+(n+15);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="11x"+(n+15);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		//id="12x"+(n+12);
+		//ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="12x"+(n+15);
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var x=0;x<20;x++){
+		for(var y=0;y<20;y++){
+			id=(x+17)+'x'+(y+1);
+			ustaw_geste(osrodek.elementy[id]);
+			osrodek.elementy[id].bezwladnosc=0.8+0.02*y;
+		}
+	}
+	
+	osrodek.start();
+}
+
+programy["interferencja"]=function(){//pole 40x30, interferencja ############################################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x1";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x2";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x27";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x28";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="1x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="2x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	id="13x4";
+	ustaw_zrodlo(osrodek.elementy[id],4,3,0);
+	
+	id="26x4";
+	ustaw_zrodlo(osrodek.elementy[id],4,3,0);
+	
+	osrodek.start();
+}
+
+programy["sciana"]=function(){//40x30, bomba ##############################################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x1";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x2";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x27";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x28";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="1x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="2x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+
+	
+	for(var n=0;n<24;n++){
+		for(var b=0;b<5;b++){
+			id=(20+b)+"x"+(n+3);
+			ustaw_geste(osrodek.elementy[id]);
+		}
+		
+	}
+	
+	id="4x15";
+	ustaw_bombe(osrodek.elementy[id],5,4,1,0);
+	
+	osrodek.start();
+}
+
+programy["fala stojaca"]=function(){//40x20, fala stojaca ##############################################
+	osrodek.init(40,20);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x19";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<18;n++){
+		id="0x"+(n+1);
+		ustaw_zrodlo(osrodek.elementy[id],1,3,0);
+		
+		id="1x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		id="2x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		id="3x"+(n+1);
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+(n+1);
+		ustaw_sciane(osrodek.elementy[id]);
+		
+		/*id="2x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);*/
+	}
+	
+	
+	osrodek.start();
+}
+
+programy["bomba"]=function(){
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_sciane(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_sciane(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_sciane(osrodek.elementy[id]);
+	}
+	
+	id="4x10";
+	ustaw_bombe(osrodek.elementy[id],10,4,1,0);
+	
+	osrodek.start();
+	
+}
+
+/*programy["obserwacja"]=function(){//pole 40x30 ############################################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x1";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x2";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x27";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x28";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="1x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="2x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	id="4x15";
+	ustaw_bombe(osrodek.elementy[id],3,3,1,0);
+	
+	for(var y=0;y<2;y++){
+		for(var x=0;x<2;x++){
+			id=(x+15)+'x'+(y+14);
+			ustaw_sciane(osrodek.elementy[id]);
+		}
+	}
+	
+	osrodek.start();
+}*/
+
+programy["zalamanie"]=function(){//pole 40x30 ############################################
+	osrodek.init(40,30);
+	var id;
+	
+	for(var n=0;n<40;n++){
+		id=n+"x0";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x1";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x2";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x27";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x28";
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id=n+"x29";
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<30;n++){
+		id="0x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="1x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="2x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="37x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="38x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+		
+		id="39x"+n;
+		ustaw_tlumik(osrodek.elementy[id]);
+	}
+	
+	for(var n=0;n<10;n++){
+		id=(n+27)+"x"+(n+3);
+		ustaw_zrodlo(osrodek.elementy[id],1,4,0);
+	}
+	
+	for(var n=0;n<4;n++){
+		id=(26-n)+'x'+(n+3);
+		ustaw_tlumik(osrodek.elementy[id],1,4,0);
+		
+		id=(25-n)+'x'+(n+3);
+		ustaw_tlumik(osrodek.elementy[id],1,4,0);
+		
+		id=(24-n)+'x'+(n+3);
+		ustaw_tlumik(osrodek.elementy[id],1,4,0);
+		
+		id=(23-n)+'x'+(n+3);
+		ustaw_tlumik(osrodek.elementy[id],1,4,0);
+		
+		id=(22-n)+'x'+(n+3);
+		ustaw_tlumik(osrodek.elementy[id],1,4,0);
+	}
+	
+	
+	for(var y=0;y<13;y++){
+		for(var x=0;x<34;x++){
+			id=(x+3)+'x'+(y+17);
+			ustaw_geste(osrodek.elementy[id]);
+			//$(osrodek.elementy[id].obraz).text("-");
+			osrodek.elementy[id].bezwladnosc=2;
+		}
+	}
+	
+	osrodek.start();
+}
+
+var fps;
+$(document).ready(function(){
+	osrodek=new Osrodek();
+	
+	/*var t=$("<canvas></canvas>").appendTo("body").css("border","1px solid").get(0);
+	var obraz=new Obraz();
+	obraz.init(10,10,20,t);
+	obraz.rysuj(2,2,"red");
+	obraz.rysuj(0,0,"lime");
+	obraz.rysuj(9,9,"blue");*/
+	
+	var select=$("<select></select>").prependTo("body").get();
+	for(n in programy){
+		$("<option value='"+n+"'>"+n+"</option>").appendTo(select);
+	}
+	$(select).change(function(){
+		var opt=$(select).val();
+		programy[opt]();
+	});
+	
+	$("<button value='stop'>stop</button>").appendTo("body").click(function(){
+		osrodek.stop();
+	}).get();
+	
+	$("<button value='start'>start</button>").appendTo("body").click(function(){
+		osrodek.start();
+	}).get();
+	
+	$("<button value='restart'>restrat</button>").appendTo("body").click(function(){
+		var opt=$(select).val();
+		programy[opt]();
+	}).get();
+	
+	fps=$("<div>ha</div>").appendTo("body").get();
+	osrodek.czas=time();
+	setInterval(function(){//wykonuj tę funckję co 500ms
+		var dt=(time()-osrodek.czas)/1000;//ile sekund minęło od ostatniego wykonania
+		var tmp=Math.round((osrodek.n/dt)*10)/10;//podziel liczbę wykonanych klatek przez liczbę sekund i zaokrąglij do pierwszego miejsca po przecinku
+		//if(fps<1)fps="-";
+		$(fps).text("fps: "+tmp);//wpisz wynik do pola o id="fps"
+		osrodek.czas=time();//złap aktualny czas
+		osrodek.n=0;//wyzeruj liczbę obliczonych klatek
+	},500);
+});
+
+function ustaw_bombe(element,A,T,n,t0){
+	element.t=0;
+	element.A=A;
+	element.T=T;
+	element.n=n;
+	element.t0=t0;
+	element.licz_predkosc=function(){}
+	element.licz_wychylenie=function(dt){
+		this.t+=dt;
+		if((this.t>this.t0)&&(this.t<=(this.t0+this.n*this.T))){
+			this.wychylenie=this.A*Math.sin(2*Math.PI*(this.t-this.t0)/this.T);
+		}else{
+			this.wychylenie=0;
+		}
+	}
+	
+	element.border=true;
+	element.border_color="rgba(255,128,0,0.3)";
+	//$(element.obraz).text('b');
+}
+
+function ustaw_geste(element){
+	element.bezwladnosc=0.1;
+	//$(element.obraz).text('g');
+	
+	element.border=true;
+	element.border_color="rgba(0,128,0,0.3)";
+}
+
+function ustaw_zrodlo(element,A,T,t0){
+	element.t=0;
+	element.A=A;
+	element.T=T;
+	element.t0=t0;
+	element.licz_predkosc=function(dt){}
+	element.licz_wychylenie=function(dt){
+		this.t+=dt;
+		this.t=this.t%this.T;
+		this.wychylenie=this.A*Math.sin(2*Math.PI*(this.t+this.t0)/this.T);
+	}
+	//$(element.obraz).text('ź');
+	
+	element.border=true;
+	element.border_color="rgba(255,128,0,0.3)";
+}
+
+function ustaw_sciane(element){
+	element.wychylenie=0;
+	element.predkosc=0;
+	element.licz_predkosc=function(dt){
+		//this.predkosc=0;
+	}
+	element.licz_wychylenie=function(dt){
+		//this.wychylenie=0;
+	}
+	//$(element.obraz).text('ś');
+	
+	element.border=true;
+	element.border_color="black";
+}
+
+function ustaw_tlumik(element){
+	/*element.tmp=0;
+	element.typ='tlumik';
+	element.licz_predkosc=function(dt){
+		this.tmp=0;
+		var a=0;
+		for(n in this.sasiedzi){
+			if(this.sasiedzi[n].typ!='tlumik'){
+				this.tmp+=this.sasiedzi[n].wychylenie;
+				a++;
+			}
+		}
+		
+		if(a!=0)this.tmp/=a;
+	}
+	element.licz_wychylenie=function(dt){
+		this.wychylenie=0.9*this.tmp;
+	}*/
+	element.bezwladnosc=1;
+	element.tlumienie=1;
+	//$(element.obraz).text('t');
+	
+	element.border=true;
+	element.border_color="rgba(0,0,255,0.3)";
+}
+
+</script>
+
+</head>
+<body>
+
+</body>
+</html>
